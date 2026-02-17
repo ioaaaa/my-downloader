@@ -1,0 +1,32 @@
+name: YouTube Downloader
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'YouTube Video URL'
+        required: true
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install yt-dlp
+        run: |
+          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+
+      - name: Create Cookie File
+        run: |
+          # 从 GitHub Secret 中读取内容并生成临时 cookie 文件
+          echo "${{ secrets.YT_COOKIES }}" > cookies.txt
+
+      - name: Download Video
+        run: |
+          # 加上 --cookies 参数来伪装成你的账号身份
+          yt-dlp --cookies cookies.txt -f "bestvideo[height<=1080]+bestaudio/best" "${{ github.event.inputs.video_url }}" -o "video.mp4"
+
+      - name: Upload to Transfer.sh
+        run: |
+          curl --upload-file ./video.mp4 https://transfer.sh/video.mp4 > download_link.txt
+          echo "Your download link is: "
+          cat download_link.txt
