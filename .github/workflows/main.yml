@@ -1,0 +1,34 @@
+name: YouTube Downloader
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'YouTube Video URL'
+        required: true
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install yt-dlp
+        run: |
+          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+
+      - name: Download Video
+        run: |
+          # 限制为 1080P 以免超出 GitHub 存储限制
+          yt-dlp -f "bestvideo[height<=1080]+bestaudio/best" "${{ github.event.inputs.video_url }}" -o "video.mp4"
+
+      - name: Upload to Transfer.sh (高速下载通道)
+        run: |
+          # 上传到 transfer.sh，这个网站国内通常可以直连且速度很快
+          curl --upload-file ./video.mp4 https://transfer.sh/video.mp4 > download_link.txt
+          echo "Your download link is: "
+          cat download_link.txt
+
+      - name: Upload as Artifact (备选通道)
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-video
+          path: video.mp4
