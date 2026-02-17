@@ -1,4 +1,4 @@
-name: YouTube Downloader
+name: YouTube Downloader Pro
 on:
   workflow_dispatch:
     inputs:
@@ -10,20 +10,34 @@ jobs:
   download:
     runs-on: ubuntu-latest
     steps:
-      - name: Install yt-dlp
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Setup Node.js (解决 n-challenge 关键)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install yt-dlp and EJS
         run: |
-          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-          sudo chmod a+rx /usr/local/bin/yt-dlp
+          # 2026年策略：使用 pip 安装并附带 ejs 补丁
+          python3 -m pip install -U pip
+          python3 -m pip install -U "yt-dlp[default]" yt-dlp-ejs
 
       - name: Create Cookie File
         run: |
-          # 从 GitHub Secret 中读取内容并生成临时 cookie 文件
           echo "${{ secrets.YT_COOKIES }}" > cookies.txt
 
       - name: Download Video
         run: |
-          # 加上 --cookies 参数来伪装成你的账号身份
-          yt-dlp --cookies cookies.txt -f "bestvideo[height<=1080]+bestaudio/best" "${{ github.event.inputs.video_url }}" -o "video.mp4"
+          # 加上 --extractor-args 来尝试绕过特定的客户端限制
+          yt-dlp --cookies cookies.txt \
+                 --extractor-args "youtube:player_client=tv,web" \
+                 -f "bestvideo[height<=1080]+bestaudio/best" \
+                 "${{ github.event.inputs.video_url }}" \
+                 -o "video.mp4"
 
       - name: Upload to Transfer.sh
         run: |
